@@ -2,6 +2,7 @@ from typing import Dict, List
 from fastapi import WebSocket
 import json
 from datetime import datetime, timezone
+from app.logger import logger 
 
 class ConnectionManager:
     def __init__(self):
@@ -35,5 +36,5 @@ class ConnectionManager:
                 try:
                     await connection.send_text(json.dumps(data))
                 except Exception as e:
-                    print(f" Error sending message  to client in room {room}")
+                    logger.error(f"Error sending message to client in room '{room}': {e}")
      

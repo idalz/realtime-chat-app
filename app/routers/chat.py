@@ -5,6 +5,7 @@ from app.websocket_manager import ConnectionManager
 from app.models.message import Message
 from app.auth.auth import decode_access_token
 import json
+from app.logger import logger 
 
 router = APIRouter()
 manager = ConnectionManager()
@@ -32,7 +33,8 @@ async def websocket_endpoint(websocket: WebSocket):
     db.commit()
 
     await manager.broadcast(room, f"{username} joined the room", sender="System")
-
+    logger.info(f"{username} joined room '{room}'")
+    
     recent_messages = (
         db.query(Message)
         .filter(Message.room == room)
@@ -60,6 +62,7 @@ async def websocket_endpoint(websocket: WebSocket):
             db.commit()
 
             await manager.broadcast(room, data, sender=username)
+            logger.info(f"{username} sent message in '{room}'")
     except WebSocketDisconnect:
         manager.disconnect(room, websocket)
 
@@ -68,3 +71,5 @@ async def websocket_endpoint(websocket: WebSocket):
         db.commit()
         
         await manager.broadcast(room, f"{username} left the room", sender="System")
+        logger.info(f"{username} left room '{room}'")
+        
