@@ -13,6 +13,7 @@ MESSAGES_LIMIT = 25
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     token = websocket.query_params.get("token")
+    room = websocket.query_params.get("room", "general")
     username = decode_access_token(token)
 
     if not username:
@@ -23,27 +24,40 @@ async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
 
     db: Session = next(get_db())  
+    await manager.connect(room, websocket)
 
-    await manager.connect(username, websocket)
+    join_msg = Message(sender="System", content=f"{username} joined the room", room=room)
+    db.add(join_msg)
+    db.commit()
+
+    await manager.broadcast(room, f"{username} joined the room", sender="System")
 
     recent_messages = (
         db.query(Message)
+        .filter(Message.room == room)
         .order_by(Message.timestamp.desc())
         .limit(MESSAGES_LIMIT)
         .all()
     )
 
     for msg in reversed(recent_messages):
-        await websocket.send_text(f"[{msg.timestamp.strftime('%Y-%m-%d %H:%M:%S')}] {msg.sender}: {msg.content}")
+        ts = msg.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+        await websocket.send_text(f"[{ts}] {msg.sender}: {msg.content}")
     
     try:
         while True:
             data = await websocket.receive_text()
 
-            msg = Message(sender=username, content=data)
+            msg = Message(sender=username, content=data, room=room)
             db.add(msg)
             db.commit()
 
-            await manager.broadcast(data, sender=username)
+            await manager.broadcast(room, data, sender=username)
     except WebSocketDisconnect:
-        manager.disconnect(username)
+        manager.disconnect(room, websocket)
+
+        leave_msg = Message(sender="System", content=f"{username} left the room", room=room)
+        db.add(leave_msg)
+        db.commit()
+        
+        await manager.broadcast(room, f"{username} left the room", sender="System")

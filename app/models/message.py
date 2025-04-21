@@ -9,3 +9,4 @@ class Message(Base):
     sender = Column(String, index=True)
     content = Column(String)
     timestamp = Column(DateTime, default=datetime.now(timezone.utc))
+    room = Column(String, index=True)
