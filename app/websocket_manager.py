@@ -7,7 +7,6 @@ class ConnectionManager:
 
     # User connect
     async def connect(self, username: str, websocket: WebSocket):
-        await websocket.accept()
         self.activate_connections[username] = websocket
         print(f"{username} connected")
 
