@@ -1,5 +1,7 @@
 from typing import Dict, List
 from fastapi import WebSocket
+import json
+from datetime import datetime, timezone
 
 class ConnectionManager:
     def __init__(self):
@@ -20,7 +22,18 @@ class ConnectionManager:
 
     # Broadcast message (to others)
     async def broadcast(self, room: str, message: str, sender: str):
+        data = {
+            "sender": sender,
+            "content": message,
+            "timestamp":datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
+            "room": room,
+            "type": "system" if sender == "System" else "chat"
+        }
+
         if room in self.activate_connections:
             for connection in self.activate_connections[room]:
-                await connection.send_text(f"{sender}: {message}")
+                try:
+                    await connection.send_text(json.dumps(data))
+                except Exception as e:
+                    print(f" Error sending message  to client in room {room}")
      

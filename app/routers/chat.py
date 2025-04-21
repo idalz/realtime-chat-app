@@ -4,6 +4,7 @@ from app.database import get_db
 from app.websocket_manager import ConnectionManager
 from app.models.message import Message
 from app.auth.auth import decode_access_token
+import json
 
 router = APIRouter()
 manager = ConnectionManager()
@@ -41,8 +42,14 @@ async def websocket_endpoint(websocket: WebSocket):
     )
 
     for msg in reversed(recent_messages):
-        ts = msg.timestamp.strftime('%Y-%m-%d %H:%M:%S')
-        await websocket.send_text(f"[{ts}] {msg.sender}: {msg.content}")
+        data = {
+            "sender": msg.sender,
+            "content": msg.content,
+            "timestamp": msg.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+            "room": msg.room,
+            "type": "system" if msg.sender == "System" else "chat"
+        }
+        await websocket.send_text(json.dumps(data))
     
     try:
         while True:
