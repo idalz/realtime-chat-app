@@ -9,32 +9,32 @@ class ConnectionManager:
         self.activate_connections: Dict[str, List[WebSocket]] = {}
 
     # Connect to room
-    async def connect(self, room: str, websocket: WebSocket):
-        if room not in self.activate_connections:
-            self.activate_connections[room] = []
-        self.activate_connections[room].append(websocket)
-        print(f"New connection in room: {room}")
+    async def connect(self, key: str, websocket: WebSocket):
+        if key not in self.activate_connections:
+            self.activate_connections[key] = []
+        self.activate_connections[key].append(websocket)
+        print(f"Connected: {key}")
 
     # Disconnect from room
-    def disconnect(self, room: str, websocket: WebSocket):
+    def disconnect(self, key: str, websocket: WebSocket):
         if room in self.activate_connections:
-            self.activate_connections[room].remove(websocket)
-            print(f"  Disconnected from room: {room}")
+            self.activate_connections[key].remove(websocket)
+            print(f"  Disconnected from room: {key }")
 
     # Broadcast message (to others)
-    async def broadcast(self, room: str, message: str, sender: str):
+    async def broadcast(self, key: str, message: str, sender: str, msg_type="chat", recipient=None):
         data = {
             "sender": sender,
+            "recipient": recipient,
             "content": message,
             "timestamp":datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
-            "room": room,
-            "type": "system" if sender == "System" else "chat"
+            "type": msg_type
         }
 
-        if room in self.activate_connections:
-            for connection in self.activate_connections[room]:
+        if key in self.activate_connections:
+            for connection in self.activate_connections[key]:
                 try:
                     await connection.send_text(json.dumps(data))
                 except Exception as e:
-                    logger.error(f"Error sending message to client in room '{room}': {e}")
+                    logger.error(f"Error sending message to {key}: {e}")
      

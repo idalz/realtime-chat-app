@@ -4,6 +4,7 @@ from app.database import get_db
 from app.websocket_manager import ConnectionManager
 from app.models.message import Message
 from app.auth.auth import decode_access_token
+from datetime import datetime, timezone
 import json
 from app.logger import logger 
 
@@ -73,3 +74,62 @@ async def websocket_endpoint(websocket: WebSocket):
         await manager.broadcast(room, f"{username} left the room", sender="System")
         logger.info(f"{username} left room '{room}'")
         
+@router.websocket("/ws/dm")
+async def websocket_dm(websocket: WebSocket):
+    token = websocket.query_params.get("token")
+    recipient = websocket.query_params.get("to")
+
+    username = decode_access_token(token)
+    if not username or not recipient:
+        await websocket.close(code=1008)
+        return
+    
+    await websocket.accept()
+
+    db: Session = next(get_db())
+
+    messages = (
+        db.query(Message)
+        .filter(
+            ((Message.sender == username) & (Message.recipient == recipient)) |
+            ((((Message.sender == recipient) & (Message.recipient == username))))
+        )
+        .order_by(Message.timestamp.desc())
+        .limit(MESSAGES_LIMIT)
+        .all()
+    )
+
+    for msg in reversed(messages):
+        data = {
+            "sender": msg.sender,
+            "recipient": msg.recipient,
+            "content": msg.content,
+            "timestamp": msg.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+            "type": "dm"
+        }
+        await websocket.send_text(json.dumps(data))
+
+    await manager.connect(f"{username}-dm-{recipient}", websocket)
+
+    try:
+        while True:
+            content = await websocket.receive_text()
+
+            msg = Message(sender=username, recipient=recipient, content=content)
+            db.add(msg)
+            db.commit()
+
+            for user in [username, recipient]:
+                key = f"{user}-dm-{username if user == recipient else recipient}"
+                conns = manager.activate_connections.get(key, [])
+                for conn in conns:
+                    await conn.send_text(json.dumps({
+                        "sender": username,
+                        "recipient": recipient,
+                        "content": content,
+                        "timestamp": datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
+                        "type": "dm"
+                    }))
+
+    except WebSocketDisconnect:
+        manager.disconnect(f"{username}-dm-{recipient}", websocket)
