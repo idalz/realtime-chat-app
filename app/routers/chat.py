@@ -1,13 +1,15 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 import json
 from app.database import get_db
 from app.websocket_manager import manager
-from app.models.message import Message
-from app.auth.auth import decode_access_token
+from app.auth.auth import decode_access_token, get_current_user
 from app.redis_client import redis_client
 from app.logger import logger 
+from app.models.message import Message
+from app.models.user import User
+from app.models.room import Room
 
 
 router = APIRouter()
@@ -28,7 +30,15 @@ async def websocket_endpoint(websocket: WebSocket):
     db: Session = next(get_db())  
     await manager.connect(room, websocket)
 
-    join_msg = Message(sender="System", content=f"{username} joined the room", room=room)
+    system_user = db.query(User).filter_by(username="System").first()
+
+    join_msg = Message(
+        sender_id=system_user.id,
+        receiver_id=None,
+        content=f"{username} joined the room",
+        room=room
+    )
+
     db.add(join_msg)
     db.commit()
 
@@ -45,11 +55,11 @@ async def websocket_endpoint(websocket: WebSocket):
 
     for msg in reversed(recent_messages):
         data = {
-            "sender": msg.sender,
+            "sender": msg.sender.username if msg.sender else "System",
             "content": msg.content,
             "timestamp": msg.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
             "room": msg.room,
-            "type": "system" if msg.sender == "System" else "chat"
+            "type": "system" if not msg.sender else "chat"
         }
         await websocket.send_text(json.dumps(data))
     
@@ -57,7 +67,8 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             data = await websocket.receive_text()
 
-            msg = Message(sender=username, content=data, room=room)
+            sender = db.query(User).filter_by(username=username).first()
+            msg = Message(sender_id=sender.id, content=data, room=room, receiver_id=None)
             db.add(msg)
             db.commit()
 
@@ -76,7 +87,12 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         manager.disconnect(room, websocket)
 
-        leave_msg = Message(sender="System", content=f"{username} left the room", room=room)
+        leave_msg = Message(
+            sender_id=system_user.id,
+            receiver_id=None,
+            content=f"{username} left the room",
+            room=room
+        )
         db.add(leave_msg)
         db.commit()
 
@@ -109,21 +125,24 @@ async def websocket_dm(websocket: WebSocket):
 
     db: Session = next(get_db())
 
+    sender = db.query(User).filter_by(username=username).first()
+    receiver = db.query(User).filter_by(username=recipient).first()
+
     messages = (
         db.query(Message)
         .filter(
-            ((Message.sender == username) & (Message.recipient == recipient)) |
-            ((((Message.sender == recipient) & (Message.recipient == username))))
+            ((Message.sender_id == sender.id) & (Message.receiver_id == receiver.id)) |
+            ((Message.sender_id == receiver.id) & (Message.receiver_id == sender.id))
         )
         .order_by(Message.timestamp.desc())
         .limit(MESSAGES_LIMIT)
         .all()
-    )
+    ) 
 
     for msg in reversed(messages):
         data = {
-            "sender": msg.sender,
-            "recipient": msg.recipient,
+            "sender": msg.sender.username if msg.sender else "Unknown",
+            "recipient": msg.receiver.username if msg.receiver else "Unknown",
             "content": msg.content,
             "timestamp": msg.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
             "type": "dm"
@@ -136,7 +155,7 @@ async def websocket_dm(websocket: WebSocket):
         while True:
             content = await websocket.receive_text()
 
-            msg = Message(sender=username, recipient=recipient, content=content)
+            msg = Message(sender_id=sender.id, receiver_id=receiver.id, content=content)
             db.add(msg)
             db.commit()
 
@@ -157,4 +176,28 @@ async def websocket_dm(websocket: WebSocket):
         manager.disconnect(f"{username}-dm-{recipient}", websocket)
     finally:
         db.close()
-        
+
+@router.get("/rooms")
+def get_rooms(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)  # ✅
+):
+    rooms = db.query(Room).all()
+    return {"rooms": [room.name for room in rooms]}
+  
+@router.get("/dms")
+def get_dms(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # Find users the current user has chat with
+    sent = db.query(User).join(Message, User.id == Message.receiver_id)\
+        .filter(Message.sender_id == current_user.id)
+
+    received = db.query(User).join(Message, User.id == Message.sender_id)\
+        .filter(Message.receiver_id == current_user.id)
+
+    # Combine and remove duplicates
+    users = {user.username for user in sent.union(received).all() if user.username != current_user.username}
+
+    return {"dms": list(users)} 

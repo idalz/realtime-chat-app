@@ -39,5 +39,23 @@ services:
     ports:
       - "6379:6379"
 
+  worker:
+    build: .
+    container_name: redis-worker
+    command: python -m app.redis_worker      
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      SECRET_KEY: ${SECRET_KEY}
+      REDIS_URL: ${REDIS_URL}
+      PYTHONPATH: /app
+    depends_on:
+      - redis
+      - chat-app
+    volumes:
+      - .:/app
+    restart: always
+
 volumes:
   pgdata:
