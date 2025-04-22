@@ -90,6 +90,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 "type": "chat"
             })
         )
+    finally:
+        db.close()
         
         logger.info(f"{username} left room '{room}'")
         
@@ -153,3 +155,6 @@ async def websocket_dm(websocket: WebSocket):
             await redis_client.publish(channel, payload)
     except WebSocketDisconnect:
         manager.disconnect(f"{username}-dm-{recipient}", websocket)
+    finally:
+        db.close()
+        
