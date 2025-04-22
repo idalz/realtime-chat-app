@@ -1,15 +1,16 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
-from app.database import get_db
-from app.websocket_manager import ConnectionManager
-from app.models.message import Message
-from app.auth.auth import decode_access_token
 from datetime import datetime, timezone
 import json
+from app.database import get_db
+from app.websocket_manager import manager
+from app.models.message import Message
+from app.auth.auth import decode_access_token
+from app.redis_client import redis_client
 from app.logger import logger 
 
+
 router = APIRouter()
-manager = ConnectionManager()
 
 MESSAGES_LIMIT = 25
 
@@ -21,11 +22,9 @@ async def websocket_endpoint(websocket: WebSocket):
 
     if not username:
         await websocket.close(code=1008)
-        print("Invalid or missing token")
         return
     
     await websocket.accept()
-
     db: Session = next(get_db())  
     await manager.connect(room, websocket)
 
@@ -62,7 +61,17 @@ async def websocket_endpoint(websocket: WebSocket):
             db.add(msg)
             db.commit()
 
-            await manager.broadcast(room, data, sender=username)
+            await redis_client.publish(
+                channel=f"room:{room}",
+                message=json.dumps({
+                    "sender": username,
+                    "content": data,
+                    "room": room,
+                    "timestamp": datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
+                    "type": "chat"
+                })
+            )
+
             logger.info(f"{username} sent message in '{room}'")
     except WebSocketDisconnect:
         manager.disconnect(room, websocket)
@@ -70,8 +79,18 @@ async def websocket_endpoint(websocket: WebSocket):
         leave_msg = Message(sender="System", content=f"{username} left the room", room=room)
         db.add(leave_msg)
         db.commit()
+
+        await redis_client.publish(
+            channel=f"room:{room}",
+            message=json.dumps({
+                "sender": username,
+                "content": f"{username} left the room",
+                "room": room,
+                "timestamp": datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
+                "type": "chat"
+            })
+        )
         
-        await manager.broadcast(room, f"{username} left the room", sender="System")
         logger.info(f"{username} left room '{room}'")
         
 @router.websocket("/ws/dm")
@@ -119,17 +138,18 @@ async def websocket_dm(websocket: WebSocket):
             db.add(msg)
             db.commit()
 
-            for user in [username, recipient]:
-                key = f"{user}-dm-{username if user == recipient else recipient}"
-                conns = manager.activate_connections.get(key, [])
-                for conn in conns:
-                    await conn.send_text(json.dumps({
-                        "sender": username,
-                        "recipient": recipient,
-                        "content": content,
-                        "timestamp": datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
-                        "type": "dm"
-                    }))
+            # Publish the message once to a Redis channel shared by both users
+            sorted_users = sorted([username, recipient])
+            channel = f"dm:{sorted_users[0]}:{sorted_users[1]}"
 
+            payload = json.dumps({
+                "sender": username,
+                "recipient": recipient,
+                "content": content,
+                "timestamp": datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
+                "type": "dm"
+            })
+
+            await redis_client.publish(channel, payload)
     except WebSocketDisconnect:
         manager.disconnect(f"{username}-dm-{recipient}", websocket)

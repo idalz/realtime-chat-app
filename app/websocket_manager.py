@@ -38,3 +38,4 @@ class ConnectionManager:
                 except Exception as e:
                     logger.error(f"Error sending message to {key}: {e}")
      
+manager = ConnectionManager()
