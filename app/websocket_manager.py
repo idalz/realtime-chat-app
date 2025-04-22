@@ -17,7 +17,7 @@ class ConnectionManager:
 
     # Disconnect from room
     def disconnect(self, key: str, websocket: WebSocket):
-        if room in self.activate_connections:
+        if key in self.activate_connections:
             self.activate_connections[key].remove(websocket)
             print(f"  Disconnected from room: {key }")
 
