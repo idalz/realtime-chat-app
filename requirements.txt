@@ -9,3 +9,6 @@ python-jose
 python-dotenv
 redis[async]
 alembic
+jinja2 
+aiofiles 
+python-multipart
