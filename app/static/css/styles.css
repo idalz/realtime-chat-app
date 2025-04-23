@@ -206,7 +206,7 @@ body {
 }
 
 .received-message {
-    background-color: #5be9fc; 
+    background-color: #27a8b9; 
     color: #000000; 
     padding: 8px;
     border-radius: 8px;
@@ -223,3 +223,31 @@ body {
 #chat-input {
     flex: 1;
 }
+
+.room-item,
+.dm-item {
+  cursor: pointer;
+  padding: 8px;
+  transition: background-color 0.3s;
+}
+
+.room-item:hover,
+.dm-item:hover {
+  background-color: #f0f0f0;
+}
+
+.active-chat {
+  background-color: #5d8ef7 !important;
+  font-weight: bold;
+  pointer-events: none; /* Prevent clicking again */
+  cursor: default;
+}
+
+.chat-title {
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin-bottom: 10px;
+    padding: 5px;
+    text-align: center;
+    border-bottom: 1px solid #cccccc;
+  }

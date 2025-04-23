@@ -19,7 +19,7 @@ class ConnectionManager:
     def disconnect(self, key: str, websocket: WebSocket):
         if key in self.activate_connections:
             self.activate_connections[key].remove(websocket)
-            print(f"  Disconnected from room: {key }")
+            print(f" Disconnected: {key}")
 
     # Broadcast message (to others)
     async def broadcast(self, key: str, message: str, sender: str, msg_type="chat", recipient=None, timestamp=None):
@@ -27,7 +27,7 @@ class ConnectionManager:
             "sender": sender,
             "recipient": recipient,
             "content": message,
-            "timestamp": datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
+            "timestamp": timestamp,
             "type": msg_type
         }
 

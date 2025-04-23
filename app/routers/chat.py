@@ -10,6 +10,8 @@ from app.logger import logger
 from app.models.message import Message
 from app.models.user import User
 from app.models.room import Room
+from fastapi import HTTPException
+from pydantic import BaseModel
 
 
 router = APIRouter()
@@ -29,20 +31,31 @@ async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     db: Session = next(get_db())  
     await manager.connect(room, websocket)
-
+    ''' # Adds system message to the database
     system_user = db.query(User).filter_by(username="System").first()
 
     join_msg = Message(
         sender_id=system_user.id,
         receiver_id=None,
         content=f"{username} joined the room",
+        timestamp=datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
         room=room
     )
 
     db.add(join_msg)
     db.commit()
+    '''
+    await redis_client.publish(
+        channel=f"room:{room}",
+        message=json.dumps({
+            "sender": "System",
+            "content": f"{username} joined the room",
+            "room": room,
+            "timestamp": datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
+            "type": "chat"
+        })
+    )
 
-    await manager.broadcast(room, f"{username} joined the room", sender="System")
     logger.info(f"{username} joined room '{room}'")
     
     recent_messages = (
@@ -55,7 +68,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
     for msg in reversed(recent_messages):
         data = {
-            "sender": msg.sender.username if msg.sender else "System",
+            "sender": msg.sender.username if msg.sender else "unknown",
             "content": msg.content,
             "timestamp": msg.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
             "room": msg.room,
@@ -68,7 +81,7 @@ async def websocket_endpoint(websocket: WebSocket):
             data = await websocket.receive_text()
 
             sender = db.query(User).filter_by(username=username).first()
-            msg = Message(sender_id=sender.id, content=data, room=room, receiver_id=None)
+            msg = Message(sender_id=sender.id, content=data, room=room, receiver_id=None, timestamp=datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'))
             db.add(msg)
             db.commit()
 
@@ -86,20 +99,21 @@ async def websocket_endpoint(websocket: WebSocket):
             logger.info(f"{username} sent message in '{room}'")
     except WebSocketDisconnect:
         manager.disconnect(room, websocket)
-
+        '''
         leave_msg = Message(
             sender_id=system_user.id,
             receiver_id=None,
             content=f"{username} left the room",
+            timestamp=datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
             room=room
         )
         db.add(leave_msg)
         db.commit()
-
+        '''
         await redis_client.publish(
             channel=f"room:{room}",
             message=json.dumps({
-                "sender": username,
+                "sender": "System",
                 "content": f"{username} left the room",
                 "room": room,
                 "timestamp": datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
@@ -148,7 +162,6 @@ async def websocket_dm(websocket: WebSocket):
             "timestamp": msg.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
             "type": "dm"
         }
-        print("Sending message:", data)
         await websocket.send_text(json.dumps(data))
 
     await manager.connect(f"{username}-dm-{recipient}", websocket)
@@ -157,7 +170,7 @@ async def websocket_dm(websocket: WebSocket):
         while True:
             content = await websocket.receive_text()
 
-            msg = Message(sender_id=sender.id, receiver_id=receiver.id, content=content)
+            msg = Message(sender_id=sender.id, receiver_id=receiver.id, content=content, timestamp=datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'))
             db.add(msg)
             db.commit()
 
@@ -207,9 +220,6 @@ def get_dms(
     return {"dms": list(users)} 
 
 
-
-from fastapi import HTTPException, status
-from pydantic import BaseModel
 
 # Pydantic model for creating a room
 class RoomCreate(BaseModel):

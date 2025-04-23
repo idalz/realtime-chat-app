@@ -32,6 +32,7 @@
       </aside>
 
       <main class="chat-main">
+        <div id="chat-title" class="chat-title">Select a room or DM</div>
         <div id="chat-box" class="chat-box"></div>
         <form id="chat-form">
           <input id="chat-input" type="text" placeholder="Type a message..." autocomplete="off" required>
@@ -55,6 +56,7 @@
       let currentSocket = null;
       let currentType = "room";
       let currentTarget = "general";
+      
 
       async function loadRoomsAndDMs() {
         const headers = { Authorization: `Bearer ${token}` };
@@ -95,6 +97,21 @@
         currentSocket = new WebSocket(path);
         currentTarget = name;
         currentType = type;
+        // Remove previous active state
+        document.querySelectorAll('.room-item, .dm-item').forEach(item => {
+          item.classList.remove('active-chat');
+        });
+
+        // Add active state to the clicked one
+        const selector = type === "dm" ? `.dm-item` : `.room-item`;
+        document.querySelectorAll(selector).forEach(item => {
+          if ((type === "dm" && item.textContent === `@${name}`) ||
+              (type === "room" && item.textContent === `# ${name}`)) {
+            item.classList.add('active-chat');
+          }
+        });
+
+        document.getElementById("chat-title").textContent = type === "dm" ? `DM @${name}` : `Room: #${name}`;
 
         const chatBox = document.getElementById("chat-box");
         chatBox.innerHTML = "";
@@ -182,7 +199,6 @@
       });
 
       loadRoomsAndDMs();
-      connectSocket("room", "general");
     });
   </script>
 </body>
