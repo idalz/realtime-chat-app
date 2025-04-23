@@ -22,12 +22,12 @@ class ConnectionManager:
             print(f"  Disconnected from room: {key }")
 
     # Broadcast message (to others)
-    async def broadcast(self, key: str, message: str, sender: str, msg_type="chat", recipient=None):
+    async def broadcast(self, key: str, message: str, sender: str, msg_type="chat", recipient=None, timestamp=None):
         data = {
             "sender": sender,
             "recipient": recipient,
             "content": message,
-            "timestamp":datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
+            "timestamp": datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
             "type": msg_type
         }
 

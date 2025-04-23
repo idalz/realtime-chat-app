@@ -128,16 +128,17 @@ async def websocket_dm(websocket: WebSocket):
     sender = db.query(User).filter_by(username=username).first()
     receiver = db.query(User).filter_by(username=recipient).first()
 
+    # Fetch last messages from oldest to newest (do not reverse)
     messages = (
         db.query(Message)
         .filter(
             ((Message.sender_id == sender.id) & (Message.receiver_id == receiver.id)) |
             ((Message.sender_id == receiver.id) & (Message.receiver_id == sender.id))
         )
-        .order_by(Message.timestamp.desc())
+        .order_by(Message.timestamp.asc())  # Get messages from oldest to newest
         .limit(MESSAGES_LIMIT)
         .all()
-    ) 
+    )
 
     for msg in reversed(messages):
         data = {
@@ -147,6 +148,7 @@ async def websocket_dm(websocket: WebSocket):
             "timestamp": msg.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
             "type": "dm"
         }
+        print("Sending message:", data)
         await websocket.send_text(json.dumps(data))
 
     await manager.connect(f"{username}-dm-{recipient}", websocket)
@@ -172,15 +174,17 @@ async def websocket_dm(websocket: WebSocket):
             })
 
             await redis_client.publish(channel, payload)
+            
     except WebSocketDisconnect:
         manager.disconnect(f"{username}-dm-{recipient}", websocket)
     finally:
         db.close()
 
+
 @router.get("/rooms")
 def get_rooms(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)  # ✅
+    current_user: User = Depends(get_current_user) 
 ):
     rooms = db.query(Room).all()
     return {"rooms": [room.name for room in rooms]}
@@ -189,7 +193,7 @@ def get_rooms(
 def get_dms(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
-):
+): 
     # Find users the current user has chat with
     sent = db.query(User).join(Message, User.id == Message.receiver_id)\
         .filter(Message.sender_id == current_user.id)
@@ -201,3 +205,32 @@ def get_dms(
     users = {user.username for user in sent.union(received).all() if user.username != current_user.username}
 
     return {"dms": list(users)} 
+
+
+
+from fastapi import HTTPException, status
+from pydantic import BaseModel
+
+# Pydantic model for creating a room
+class RoomCreate(BaseModel):
+    room_name: str  # Room name as a required string
+
+
+@router.post("/rooms")
+def create_room(
+    room: RoomCreate,  # Use RoomCreate schema here to validate the incoming data
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)  # User authentication
+):
+    # Check if the room already exists
+    existing_room = db.query(Room).filter_by(name=room.room_name).first()
+    if existing_room:
+        raise HTTPException(status_code=400, detail="Room already exists")
+    
+    # Create and add the new room to the database
+    new_room = Room(name=room.room_name)
+    db.add(new_room)
+    db.commit()
+    db.refresh(new_room)
+    
+    return {"room": new_room.name}
