@@ -19,3 +19,6 @@ venv_chat_app/
 
 # Alembic cache
 alembic/versions/*.pyc
+
+# Schreenshot of the app
+app_screenshots/
