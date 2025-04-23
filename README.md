@@ -1,5 +1,6 @@
 # Real-Time Chat App
-A real-time chat application built with **FastAPI**, **WebSockets**, **Redis** and **PostgreSQL** for backend and HTML, CSS and Javascript for frontend. Users can signup, login, then create or chat in rooms or DMs.
+
+A real-time chat application built with **FastAPI**, **WebSockets**, **Redis**, and **PostgreSQL** on the backend, and **HTML**, **CSS**, and **JavaScript** on the frontend. Users can sign up, log in, and start chatting in public rooms or private direct messages (DMs).
 
 ---
 ## Contents
@@ -16,11 +17,11 @@ A real-time chat application built with **FastAPI**, **WebSockets**, **Redis** a
 ## Features
 
 - Real-time communication using WebSockets
-- 🧑‍🤝Chat rooms & private (DM) conversations
+- Chat rooms & private (DM) conversations
 - Redis pub/sub for message broadcasting
-- SQLite/PostgreSQL database support with Alembic migrations
-- Dockerized backend and services
-- Vanilla JS frontend with styled UI
+- PostgreSQL database support with Alembic migrations
+- Dockerized app and services
+- HTML, CSS, Vanilla JS frontend
 - User authentication with JWT
 - Secure access using tokens
 
@@ -38,7 +39,9 @@ A real-time chat application built with **FastAPI**, **WebSockets**, **Redis** a
 - Docker
 
 **Frontend:**
-- HTML, CSS, JavaScript (Vanilla)
+- HTML
+- CSS
+- JavaScript (Vanilla)
 
 ---
 ## Usage
@@ -46,17 +49,21 @@ A real-time chat application built with **FastAPI**, **WebSockets**, **Redis** a
 1. Sign Up and Log In:
 
 -  Create an account in signup page.
+
 ![Alt text](app_screenshots/signup.png)
 
 - Login in the login page.
+
 ![Alt text](app_screenshots/login.png)
 
 2. Creat a room and chat, or send a DM.
 
 - Chat in rooms.
+
 ![Alt text](app_screenshots/index_room.png)
 
 - Send DMs.
+
 ![Alt text](app_screenshots/index_dm.png)
 
 ---
@@ -74,9 +81,9 @@ git clone https://github.com/idalz/realtime-chat-app.git
 
 2. Set up enviroment variables:
 
-Create a .env file in the root directory (realtime-chat-app) and add the following variables:
+Create a `.env` file in the root directory (realtime-chat-app) and add the following variables:
 
-```bash
+```
 DATABASE_URL=postgresql+psycopg2://<your-username>:<your-password>@db/chat_db
 POSTGRES_USER=<your-username>
 POSTGRES_PASSWORD=<your-password>
@@ -87,7 +94,7 @@ REDIS_URL=redis://redis:6379
 
 3.Docker Setup:
 
-Run the following commands to start the application and database container:
+Run the following command to start the application and database container:
 
 ```bash
 docker-compose up --build
@@ -95,7 +102,7 @@ docker-compose up --build
 
 This will:
 
-Build and start all the containers (app and postgreSQL, redis).
+Build and start all the containers (app, postgreSQL, redis and redis worker).
 Persist data in a Docker volume so database content is saved.
 
 4. Database Setup (with Alembic):
@@ -106,7 +113,7 @@ Inside the app container run the following to set up the schemas:
 docker-compose exec app alembic upgrade head
 ```
 
-This will create the necessary tables: users, rooms and messages.
+This will create the necessary tables: `users`, `rooms` and `messages`.
 
 5. Run the application:
 
@@ -115,22 +122,24 @@ The app will be running at http://localhost:8000.
 ---
 ## Development
 
-Running Locally Without Docker:
+Running locally without Docker:
 
 1. Install the dependencies:
 
-pip install -r requirements.txt
-
-2. Set up the environment variables in .env:
-
-You may need to change the DATABASE_URL to localhost:
-
 ```bash
+pip install -r requirements.txt
+```
+
+2. Set up the environment variables in `.env`:
+
+You may need to change the `DATABASE_URL` to `localhost`:
+
+```
 DATABASE_URL=postgresql+psycopg2://<your-username>:<your-password>@localhost:5432/chat_db
 ...
 ```
 
-3. Create a PostgreSQL database named chat_db.
+3. Create a PostgreSQL database named `chat_db`.
 
 4. Run Alembic Migrations Locally:
 
@@ -149,7 +158,7 @@ uvicorn app.main:app --reload
 ---
 ## Testing 
 
-if you would like to run tests, ensure you installed pytest:
+if you would like to run tests, ensure you installed `pytest`:
 
 ```bash
 pip install pytest
