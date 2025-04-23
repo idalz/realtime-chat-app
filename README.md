@@ -92,7 +92,7 @@ SECRET_KEY=<your-secret-key>
 REDIS_URL=redis://redis:6379
 ```
 
-3.Docker Setup:
+3. Docker Setup:
 
 Run the following command to start the application and database container:
 
