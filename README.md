@@ -48,7 +48,7 @@ A real-time chat application built with **FastAPI**, **WebSockets**, **Redis**, 
 
 1. Sign Up and Log In:
 
--  Create an account in signup page.
+-  Create an account in the signup page.
 
 ![Alt text](app_screenshots/signup.png)
 
