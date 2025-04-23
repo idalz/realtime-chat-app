@@ -239,7 +239,7 @@ body {
 .active-chat {
   background-color: #5d8ef7 !important;
   font-weight: bold;
-  pointer-events: none; /* Prevent clicking again */
+  pointer-events: none; 
   cursor: default;
 }
 
@@ -251,3 +251,18 @@ body {
     text-align: center;
     border-bottom: 1px solid #cccccc;
   }
+
+#chat-form button {
+    background-color: #007bff; 
+    color: white;              
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.3s ease;
+}
+
+#chat-form button:hover {
+    background-color: #0056b3;
+}
