@@ -56,7 +56,7 @@ A real-time chat platform using **FastAPI**, **WebSockets**, and **Redis** for p
 
 ![Alt text](app_screenshots/login.png)
 
-2. Creat a room and chat, or send a DM.
+2. Create a room and chat, or send a DM.
 
 - Chat in rooms.
 
