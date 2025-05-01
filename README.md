@@ -1,6 +1,6 @@
 # Real-Time Chat App
 
-A real-time chat application built with **FastAPI**, **WebSockets**, **Redis**, and **PostgreSQL** on the backend, and **HTML**, **CSS**, and **JavaScript** on the frontend. Users can sign up, log in, and start chatting in public rooms or private direct messages (DMs).
+A real-time chat platform using **FastAPI**, **WebSockets**, and **Redis** for pub/sub messaging. Supports **JWT**-based user authentication, public rooms, and private DMs, with **PostgreSQL**, **Alembic** and **Dockerized** deployment.  
 
 ---
 ## Contents
@@ -169,4 +169,5 @@ Tests currently use SQLite db.
 ---
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the [MIT License](LICENSE).
+
